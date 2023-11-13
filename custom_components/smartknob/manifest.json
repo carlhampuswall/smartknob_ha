@@ -1,0 +1,12 @@
+{
+  "domain": "smartknob",
+  "name": "smartknob",
+  "documentation": "",
+  "dependencies": ["mqtt"],
+  "codeowners": ["@carlhampuswall"],
+  "requirements": [],
+  "config_flow": true,
+  "translations": [],
+  "iot_class": "local_push",
+  "version": "0.0.1"
+}
