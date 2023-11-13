@@ -63,7 +63,7 @@ async def async_setup(hass, config):
                 await hass.services.async_call(
                     "light",
                     SERVICE_TURN_ON if new_value > 0.0 else SERVICE_TURN_OFF,
-                    {"entity_id": entity_id, "brightness": new_value * 255},
+                    {"entity_id": entity_id, "brightness": new_value * 2.55},
                 )
                 _LOGGER.error(hass.states.get(entity_id))
             else:
