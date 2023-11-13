@@ -7,9 +7,8 @@ from .const import (
     DOMAIN,
     TOPIC_TO_KNOB,
     TOPIC_FROM_KNOB,
-    SWITCH_ID,
-    LIGHT_ID,
-    SENSOR_ID,
+    LIGHT_SWITCH,
+    LIGHT_DIMMER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,44 +28,42 @@ async def async_setup(hass, config):
             return
 
         if (
-            "app_id" not in payload
-            or "app_uid" not in payload
-            or "command" not in payload
+            "entity_id" not in payload
+            or "app_slug" not in payload
+            or "new_value" not in payload
         ):
-            _LOGGER.error("Payload missing entity_id or app_uid or command")
+            _LOGGER.error("Payload missing entity_id or app_slug or new_value")
             return
 
-        app_id = payload["app_id"]
-        app_uid = payload["app_uid"]
-        command = payload["command"]
+        entity_id = payload["entity_id"]
+        app_slug = payload["app_slug"]
+        new_value = payload["new_value"]
         # data = payload["data"]
 
-        if app_id == SWITCH_ID:
+        # _LOGGER.error(payload)
+
+        if app_slug == LIGHT_SWITCH:
             _LOGGER.error("Switch command executing")
-            if command == "turn_on":
-                hass.states.async_set("switch.virtual_switch_1", STATE_ON)
-            elif command == "turn_off":
-                hass.states.async_set("switch.virtual_switch_1", STATE_OFF)
-            elif command == "toggle":
-                hass.states.async_set(
-                    "switch.virtual_switch_1",
-                    STATE_ON
-                    if hass.states.get("switch.virtual_switch_1").state == STATE_OFF
-                    else STATE_OFF,
-                )
+            if new_value == 1.0:
+                hass.states.async_set(entity_id, STATE_ON)
+
+            elif new_value == 0.0:
+                hass.states.async_set(entity_id, STATE_OFF)
+
             else:
                 _LOGGER.error("Not implemented command")
 
-        elif app_id == LIGHT_ID:
+        elif app_slug == LIGHT_DIMMER:
             _LOGGER.error("Light command executing")
-            if command == "turn_on":
-                # hass.states.async_set("light.smartknob", "on")
-                pass
-            elif command == "turn_off":
-                # hass.states.async_set("light.smartknob", "off")
-                pass
-            elif command == "set_brightness":
-                pass
+            if new_value != None:
+                hass.states.async_set(
+                    entity_id,
+                    STATE_ON if new_value > 0.0 else STATE_OFF,
+                    {"brightness": new_value * 255},
+                )
+                _LOGGER.error(hass.states.get(entity_id))
+            else:
+                _LOGGER.error("Not implemented command")
 
         else:
             _LOGGER.error("No implemented app_id")

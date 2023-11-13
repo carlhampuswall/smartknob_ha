@@ -1,9 +1,8 @@
-DOMAIN = "smartknob_mvp"
+DOMAIN = "smartknob"
 
 TOPIC_TO_KNOB = "smartknob/to_knob"
 TOPIC_FROM_KNOB = "smartknob/from_knob"
 
 
-SWITCH_ID = "1"
-LIGHT_ID = "2"
-SENSOR_ID = "3"
+LIGHT_SWITCH = "light_switch"
+LIGHT_DIMMER = "light_dimmer"
