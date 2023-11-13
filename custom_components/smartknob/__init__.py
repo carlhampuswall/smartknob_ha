@@ -6,7 +6,7 @@ from homeassistant.const import STATE_ON, STATE_OFF, SERVICE_TURN_ON, SERVICE_TU
 from .const import (
     DOMAIN,
     TOPIC_TO_KNOB,
-    TOPIC_FROM_KNOB,
+    TOPIC_TO_HASS,
     LIGHT_SWITCH,
     LIGHT_DIMMER,
 )
@@ -73,7 +73,7 @@ async def async_setup(hass, config):
             _LOGGER.error("No implemented app_id")
             return
 
-    await hass.components.mqtt.async_subscribe(TOPIC_FROM_KNOB, mqtt_message_recived, 0)
+    await hass.components.mqtt.async_subscribe(TOPIC_TO_HASS, mqtt_message_recived, 0)
 
     return True
 
