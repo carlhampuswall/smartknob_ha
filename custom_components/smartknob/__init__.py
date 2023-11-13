@@ -1,7 +1,7 @@
 import logging
 import json
 
-from homeassistant.const import STATE_ON, STATE_OFF
+from homeassistant.const import STATE_ON, STATE_OFF, SERVICE_TURN_ON, SERVICE_TURN_OFF
 
 from .const import (
     DOMAIN,
@@ -45,10 +45,14 @@ async def async_setup(hass, config):
         if app_slug == LIGHT_SWITCH:
             _LOGGER.error("Switch command executing")
             if new_value == 1.0:
-                hass.states.async_set(entity_id, STATE_ON)
+                await hass.services.async_call(
+                    "light", "turn_on", {"entity_id": entity_id}
+                )
 
             elif new_value == 0.0:
-                hass.states.async_set(entity_id, STATE_OFF)
+                await hass.services.async_call(
+                    "light", "turn_off", {"entity_id": entity_id}
+                )
 
             else:
                 _LOGGER.error("Not implemented command")
@@ -56,10 +60,10 @@ async def async_setup(hass, config):
         elif app_slug == LIGHT_DIMMER:
             _LOGGER.error("Light command executing")
             if new_value != None:
-                hass.states.async_set(
-                    entity_id,
-                    STATE_ON if new_value > 0.0 else STATE_OFF,
-                    {"brightness": new_value * 255},
+                await hass.services.async_call(
+                    "light",
+                    SERVICE_TURN_ON if new_value > 0.0 else SERVICE_TURN_OFF,
+                    {"entity_id": entity_id, "brightness": new_value * 255},
                 )
                 _LOGGER.error(hass.states.get(entity_id))
             else:
