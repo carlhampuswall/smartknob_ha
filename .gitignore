@@ -1,0 +1,8 @@
+/*
+
+!.gitignore
+
+!/custom_components
+/custom_components/*
+/custom_components/smartknob/__pycache__/
+!/custom_components/smartknob
