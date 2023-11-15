@@ -1,0 +1,7 @@
+/*
+
+!.gitignore
+
+!/custom_components
+/custom_components/*
+!/custom_components/smarknob
