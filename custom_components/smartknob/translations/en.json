@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Menu"
+      },
+      "app_type": {
+        "title": "Select an app type",
+        "data": {
+          "username": "Username"
+        }
+      },
+      "app_entity": {
+        "title": "Progress step",
+        "description": "Progress step description",
+        "data": {
+          "entity": "Select an entity"
+        }
+      }
+    }
+  }
+}
