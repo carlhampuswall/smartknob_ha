@@ -1,4 +1,6 @@
 # Smartknob Home Assistant Integration
+# DISCLAMER
+Dont install this Integration unless you know what ur doing!
 
 ## Description
 This is a Home Assistant integration for the Smartknob device. It allows you to control and monitor your Smartknob devices from Home Assistant.
