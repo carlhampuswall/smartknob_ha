@@ -1,26 +1,36 @@
-import logging
+from .panel import (
+    async_register_panel,
+    async_unregister_panel,
+)
+from .logger import _LOGGER
+
 import json
 
-from homeassistant.const import STATE_ON, STATE_OFF, SERVICE_TURN_ON, SERVICE_TURN_OFF
+import homeassistant
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+from .websockets import async_register_websockets
+from .store import async_get_registry
+
+from homeassistant.const import SERVICE_TURN_ON, SERVICE_TURN_OFF
+from homeassistant.components import panel_custom
+
 
 from .const import (
     DOMAIN,
-    TOPIC_TO_KNOB,
     TOPIC_TO_HASS,
     LIGHT_SWITCH,
     LIGHT_DIMMER,
 )
 
-_LOGGER = logging.getLogger(__name__)
 
-
-async def async_setup(hass, config):
+async def async_setup(hass: HomeAssistant, config):
     _LOGGER.debug("async_setup")
-    # hass.async_create_task(hass.config_entries.flow.async_init(DOMAIN))
 
     async def mqtt_message_recived(msg):
-        # _LOGGER.error("Message recived on topic %s: %s", msg.topic, msg.payload)
-
         try:
             payload = json.loads(msg.payload)
         except json.JSONDecodeError as e:
@@ -38,12 +48,9 @@ async def async_setup(hass, config):
         entity_id = payload["entity_id"]
         app_slug = payload["app_slug"]
         new_value = payload["new_value"]
-        # data = payload["data"]
-
-        # _LOGGER.error(payload)
 
         if app_slug == LIGHT_SWITCH:
-            _LOGGER.error("Switch command executing")
+            _LOGGER.debug("Switch command executing")
             if new_value == 1.0:
                 await hass.services.async_call(
                     "light", "turn_on", {"entity_id": entity_id}
@@ -58,7 +65,7 @@ async def async_setup(hass, config):
                 _LOGGER.error("Not implemented command")
 
         elif app_slug == LIGHT_DIMMER:
-            _LOGGER.error("Light command executing")
+            _LOGGER.debug("Light command executing")
             if new_value != None:
                 await hass.services.async_call(
                     "light",
@@ -67,7 +74,6 @@ async def async_setup(hass, config):
                     if new_value > 0.0
                     else {"entity_id": entity_id},
                 )
-                # _LOGGER.error(hass.states.get(entity_id))
             else:
                 _LOGGER.error("Not implemented command")
 
@@ -80,7 +86,54 @@ async def async_setup(hass, config):
     return True
 
 
-async def async_setup_entry(hass, config):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up the Your Integration entry."""
+    session = async_get_clientsession(hass)
+
+    store = await async_get_registry(hass)
+    coordinator = SmartknobCoordinator(hass, session, entry, store)
+
     hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN] = {"coordinator": coordinator, "apps": []}
+
+    if entry.unique_id is None:
+        hass.config_entries.async_update_entry(entry, unique_id=coordinator.id, data={})
+
+    await async_register_panel(hass)
+
+    # Websocket support
+    await async_register_websockets(hass)
+
+    # LOAD CONFIG DATA
+    coordinator.store.async_load()
+
     return True
+
+
+async def async_remove_entry(hass, entry):
+    async_unregister_panel(hass)
+    coordinator = hass.data[DOMAIN]["coordinator"]
+    await coordinator.async_delete_config()
+    del hass.data[DOMAIN]
+
+
+class SmartknobCoordinator(DataUpdateCoordinator):
+    def __init__(self, hass, session, entry, store):
+        self.id = entry.entry_id
+        self.hass = hass
+        self.entry = entry
+        self.store = store
+
+        super().__init__(hass, _LOGGER, name=DOMAIN)
+
+    async def async_update_app_config(self, data: dict = None):
+        if self.store.async_get_app(data.get("app_id")):
+            self.store.async_update_app(data.get("app_id"), data)
+
+        self.store.async_create_app(data)
+
+    async def async_unload(self):
+        del self.hass.data[DOMAIN]["apps"]
+
+    async def async_delete_config(self):
+        await self.store.async_delete()
