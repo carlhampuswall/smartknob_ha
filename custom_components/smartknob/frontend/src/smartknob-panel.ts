@@ -3,10 +3,11 @@ import { html, css, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import './view/app-form';
-import { HassEntity } from 'home-assistant-js-websocket';
 import { AppListItem, AppSlug, HomeAssistant } from './types';
 import { loadHa } from './load-ha-elements';
-import { getAsyncApps } from './data/websockets';
+import { getAsyncAppSlugs, getAsyncApps } from './data/websockets';
+
+import './const';
 
 @customElement('smartknob-panel')
 export class SmartknobPanel extends LitElement {
@@ -32,44 +33,38 @@ export class SmartknobPanel extends LitElement {
     }
   `;
 
-  appSlugs: AppSlug[] = [
-    {
-      slug: 'light_switch',
-      friendlyName: 'Light Switch',
-      domain: 'light',
-    },
-    {
-      slug: 'light_dimmer',
-      friendlyName: 'Light Dimmer',
-      domain: 'light',
-    },
-    {
-      slug: 'switch',
-      friendlyName: 'Switch',
-      domain: 'switch',
-    },
-  ];
-
+  @property({ type: Object }) public hass!: HomeAssistant;
+  @state() private _appSlugs: AppSlug[] = [];
   @state() private _appList: AppListItem[] = [];
 
   async connectedCallback() {
-    super.connectedCallback();
-    const object: any = await getAsyncApps(this.hass);
-    const apps = object.apps;
+    const loadedAppSlugs = (await getAsyncAppSlugs(this.hass)).app_slugs;
+
+    const loadedApps = (await getAsyncApps(this.hass)).apps;
     const __appList: AppListItem[] = []; // BAD NAMING CONVENTION?? BUT NEED TO REPLACE _appList in its entirety FOR LIT TO RERENDER
-    apps.forEach((app) => {
+    loadedApps.forEach((app) => {
+      const _appSlug =
+        loadedAppSlugs.find((a) => a.slug_id == app.app_slug_id) ??
+        loadedAppSlugs[0];
+      const _entity =
+        [...Object.values(this.hass.states)].find(
+          (e) => e.entity_id == app.entity_id,
+        ) ?? null;
       __appList.push({
-        app_id: app.app_id,
-        app_slug:
-          this.appSlugs.find((a) => a.slug == app.app_slug_id) ??
-          this.appSlugs[0],
-        entity:
-          [...Object.values(this.hass.states)].find(
-            (e) => e.entity_id == app.entity_id,
-          ) ?? null,
+        app: {
+          app_id: app.app_id,
+          app_slug_id: app.app_slug_id,
+          entity_id: app.entity_id,
+        },
+        app_slug: _appSlug,
+        entity: _entity,
       });
     });
     this._appList = __appList;
+    this._appSlugs = loadedAppSlugs;
+
+    super.connectedCallback();
+
     this.requestUpdate();
   }
 
@@ -78,10 +73,6 @@ export class SmartknobPanel extends LitElement {
 
     this.requestUpdate();
   }
-
-  @property({ type: Object }) public hass!: HomeAssistant;
-  @property({ type: Object }) selectedSlug: AppSlug = this.appSlugs[0];
-  @property({ type: Object }) selectedEntity: HassEntity | null = null;
 
   render() {
     if (
@@ -106,8 +97,8 @@ export class SmartknobPanel extends LitElement {
           <app-form
             .hass=${this.hass}
             .entities=${entities}
-            .appSlugs=${this.appSlugs}
-            .appList=${this._appList}
+            .appSlugs=${this._appSlugs}
+            .apps=${this._appList}
           ></app-form>
         </div>
       </div>

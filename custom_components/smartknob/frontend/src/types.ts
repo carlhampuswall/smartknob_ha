@@ -17,16 +17,24 @@ declare global {
 
 //MY CUSTOM TYPES
 export interface AppSlug {
-  slug: string;
-  friendlyName: string;
+  slug_id: string;
+  friendly_name: string;
   domain: string;
+  supported_features: string;
+}
+
+export interface App {
+  app_id: string;
+  app_slug_id: string;
+  entity_id: string;
 }
 
 export interface AppListItem {
-  app_id: string;
+  app: App;
   app_slug: AppSlug;
   entity: HassEntity | null;
 }
+
 //MY CUSTOM TYPES
 
 export interface ServiceCallRequest {

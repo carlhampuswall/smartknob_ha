@@ -1,7 +1,14 @@
-import { mdiDrag } from '@mdi/js';
+import { mdiDelete, mdiDrag } from '@mdi/js';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators';
-import { AppListItem } from '../types';
+import {
+  AppListItem,
+  AppSlug,
+  HomeAssistant,
+  SelectOption,
+  SelectSelector,
+} from '../types';
+import { saveApps } from '../data/websockets';
 
 @customElement('sk-reorderable-list')
 export class SkReorderableList extends LitElement {
@@ -28,24 +35,70 @@ export class SkReorderableList extends LitElement {
       align-items: center;
       gap: 12px;
     }
+    .list-item .index {
+      width: 32px;
+      text-align: center;
+    }
   `;
 
-  @property({ type: Array }) items: AppListItem[] = [];
+  @property({ type: Object }) public hass!: HomeAssistant;
+  @property({ type: Array }) public appSlugs!: AppSlug[];
+  @property({ type: Array }) apps: AppListItem[] = [];
+  @property({ type: Boolean }) sortable: boolean = false;
 
   render() {
+    const options: SelectOption[] = this.appSlugs.map((slug) => {
+      return {
+        value: slug.slug_id,
+        label: slug.friendly_name,
+      };
+    });
+
+    const selectSelector: SelectSelector = {
+      select: {
+        custom_value: false,
+        mode: 'dropdown',
+        options,
+      },
+    };
     return html`
-      ${this.items.map(
+      ${this.apps.map(
         (item, index) =>
           html`<sk-reorderable-list-item
-            .id="${item.app_id}"
+            .app_id=${item.app.app_id}
+            .isDraggable=${this.sortable}
             @drop="${this.drop}"
+            @delete="${() => {
+              // TODO show confirmation dialog before deletion
+              this.apps = this.apps.filter(
+                (app) => app.app.app_id !== item.app.app_id,
+              );
+              saveApps(
+                this.hass,
+                this.apps.map((item) => item.app),
+              );
+              this.requestUpdate();
+            }}"
           >
             <div class="list-item">
-              <div>${index + 1}</div>
-              |
-              <div>${item.app_slug.friendlyName}</div>
-              |
-              <div>${item.entity?.attributes.friendly_name}</div>
+              <div class="index">${index + 1}</div>
+              <ha-selector
+                .hass=${this.hass}
+                .selector=${selectSelector}
+                .required=${true}
+                .label=${'Select App'}
+                .value=${item.app_slug.slug_id}
+              ></ha-selector>
+              <ha-selector
+                .hass=${this.hass}
+                .selector=${{
+                  entity: {
+                    include_entities: Object.keys(this.hass.states),
+                  },
+                }}
+                .required=${true}
+                .value=${item.entity?.entity_id}
+              ></ha-selector>
             </div>
           </sk-reorderable-list-item> `,
       )}
@@ -57,11 +110,12 @@ export class SkReorderableList extends LitElement {
     const draggableId = e.dataTransfer?.getData('text/plain');
     const dropId = e.target.getAttribute('draggable-id');
 
-    this.items = this.reorderItems(this.items, draggableId, dropId);
+    this.apps = this.reorderItems(this.apps, draggableId, dropId);
 
-    // TODO Save apps after reordering !?
-    // saveApps(this.hass, this.items);
-
+    saveApps(
+      this.hass,
+      this.apps.map((item) => item.app),
+    );
     this.requestUpdate();
   }
 
@@ -70,8 +124,10 @@ export class SkReorderableList extends LitElement {
     draggedId: string,
     dropId: string,
   ): AppListItem[] {
-    const draggableIndex = items.findIndex((item) => item.app_id === draggedId);
-    const dropIndex = items.findIndex((item) => item.app_id === dropId);
+    const draggableIndex = items.findIndex(
+      (item) => item.app.app_id === draggedId,
+    );
+    const dropIndex = items.findIndex((item) => item.app.app_id === dropId);
 
     const [draggedItem] = items.splice(draggableIndex, 1);
     items.splice(
@@ -94,7 +150,7 @@ export class SkReorderableListItem extends LitElement {
       align-items: center;
       justify-content: space-between;
       user-select: none;
-      cursor: grab;
+      height: 48px;
     }
     :host(.over) {
       border-bottom: 4px solid var(--primary-color);
@@ -102,9 +158,25 @@ export class SkReorderableListItem extends LitElement {
     [draggable] {
       opacity: 1;
     }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .actions .delete {
+      color: var(--error-color);
+    }
+
+    .actions .sort {
+      cursor: grab;
+    }
   `;
 
-  @property() id!: string;
+  @property() app_id!: string;
   @property({ type: Boolean }) isDraggable?: boolean = true;
 
   connectedCallback() {
@@ -115,14 +187,37 @@ export class SkReorderableListItem extends LitElement {
     this.addEventListener('dragover', this.dragOver);
     this.addEventListener('dragleave', this.dragLeave);
     this.addEventListener('dragend', this.dragEnd);
-
-    this.setAttribute('draggable', 'true');
   }
 
   render() {
-    this.setAttribute('draggable-id', this.id);
-    return html` <slot></slot
-      ><ha-svg-icon title="draggable" .path=${mdiDrag}></ha-svg-icon>`;
+    if (this.isDraggable) this.setAttribute('draggable', 'true');
+    else this.removeAttribute('draggable');
+    this.setAttribute('draggable-id', this.app_id);
+    return html`
+      <slot></slot>
+      <div class="actions">
+        <ha-svg-icon
+          title="delete"
+          class="delete"
+          .path=${mdiDelete}
+          @click=${() => {
+            this.dispatchEvent(
+              new CustomEvent('delete', {
+                detail: { id: this.app_id },
+                bubbles: true,
+                composed: true,
+              }),
+            );
+          }}
+        ></ha-svg-icon>
+        <ha-svg-icon
+          title="draggable"
+          .path=${mdiDrag}
+          class="sort"
+          style=${this.isDraggable ? '' : 'display: none;'}
+        ></ha-svg-icon>
+      </div>
+    `;
   }
   dragStart(e: any) {
     this.style.opacity = '0.4';
