@@ -6,13 +6,14 @@ from homeassistant.components.http.data_validator import RequestDataValidator
 import voluptuous as vol
 import json
 
-from .const import DOMAIN
+from .const import APP_SLUGS, DOMAIN
 from homeassistant.components.http import HomeAssistantView
 
 
 async def async_register_websockets(hass):
     hass.http.register_view(SmartknobConfigView)
     hass.http.register_view(SmartknobAppsView)
+    hass.http.register_view(SmartknobAppSlugsView)
 
 
 class SmartknobConfigView(HomeAssistantView):
@@ -33,16 +34,25 @@ class SmartknobAppsView(HomeAssistantView):
     @RequestDataValidator(
         vol.Schema(
             {
-                vol.Required("app_id"): str,
-                vol.Required("app_slug_id"): str,
-                vol.Required("entity_id"): str,
+                vol.Required("apps"): [
+                    {
+                        vol.Required("app_id"): str,
+                        vol.Required("app_slug_id"): str,
+                        vol.Required("entity_id"): str,
+                    }
+                ],
             }
         )
     )
-    async def post(self, request, data):
+    async def post(self, request, data: dict):
         hass: HomeAssistant = request.app["hass"]
         coordinator = hass.data[DOMAIN]["coordinator"]
-        await coordinator.async_update_app_config(data)
+        apps = data.get("apps")
+
+        if len(apps) > 1:
+            await coordinator.store.async_update_apps(apps)
+        await coordinator.async_update_app_config(data.get("apps")[0])
+
         return self.json({"success": True})  # TODO return actual success or error
 
     async def get(self, request):
@@ -52,3 +62,14 @@ class SmartknobAppsView(HomeAssistantView):
         return self.json(
             {"success": True, "apps": apps}
         )  # TODO return actual success or error
+
+
+class SmartknobAppSlugsView(HomeAssistantView):
+    url = "/api/smartknob/app_slugs"
+    name = "api:smartknob:app_slugs"
+
+    async def get(self, request):
+        # hass: HomeAssistant = request.app["hass"]
+        # coordinator = hass.data[DOMAIN]["coordinator"]
+
+        return self.json({"success": True, "app_slugs": APP_SLUGS})
