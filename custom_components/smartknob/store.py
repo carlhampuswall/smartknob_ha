@@ -33,7 +33,7 @@ class SmartknobStorage:
         self.config: MutableMapping[
             str, str
         ] = {}  #! ADD SMARTKNOB DEVICE SPECIFIC CONFIG HERE
-        self.apps: [AppEntry] = []
+        self.apps = []
         self._store = Store(hass, 1, STORAGE_KEY)
 
     async def async_load(self) -> None:
@@ -107,14 +107,43 @@ class SmartknobStorage:
             return True
         return False
 
+    # @callback
+    # def async_update_app(self, index, data: dict) -> AppEntry:
+
+    #     # old = None
+    #     # for app in self.apps:
+    #     #     if app.app_id == data.get("app_id"):
+    #     #         old = app
+
+    #     # _LOGGER.error("Old: %s", old)
+    #     # self.apps.remove(old)
+
+    #     # new = self.apps = attr.evolve(old, **data)
+    #     # self.async_schedule_save()
+    #     # return attr.asdict(new)
+
     @callback
-    def async_update_apps(self, changes: dict):
+    def async_update_apps(self, new_apps):
         """Update existing config."""
 
+        # old = self.apps
+        # new = self.apps = attr.evolve(old, **changes)
+        # self.async_schedule_save()
+        # return attr.asdict(new)
         old = self.apps
-        new = self.apps = attr.evolve(old, **changes)
+        new = []
+
+        for app in new_apps:
+            new_app = AppEntry(**app)
+            new.append(new_app)
+
+        self.apps = new
+
         self.async_schedule_save()
+
         return attr.asdict(new)
+        # _LOGGER.error("OLD: %s", old)
+        # _LOGGER.error("HERE: %s", changes)
 
 
 @bind_hass

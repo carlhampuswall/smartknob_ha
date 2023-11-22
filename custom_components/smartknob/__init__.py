@@ -128,7 +128,8 @@ class SmartknobCoordinator(DataUpdateCoordinator):
 
     async def async_update_app_config(self, data: dict = None):
         if self.store.async_get_app(data.get("app_id")):
-            self.store.async_update_app(data.get("app_id"), data)
+            self.store.async_update_app(data)
+            return
 
         self.store.async_create_app(data)
 

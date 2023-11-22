@@ -14,23 +14,27 @@ LIGHT_SWITCH = "light_switch"
 LIGHT_DIMMER = "light_dimmer"
 SWITCH = "switch"
 
-# APP_SLUG_IDS = [LIGHT_SWITCH, LIGHT_DIMMER, SWITCH]
+DOMAIN_LIGHT = "light"
+DOMAIN_SWITCH = "switch"
 
 
 APP_SLUGS = [
     {
-        "app_slug_id": LIGHT_SWITCH,
+        "slug_id": LIGHT_SWITCH,
         "friendly_name": "Light Switch",
+        "domain": DOMAIN_LIGHT,
         "supported_features": 1,
     },
     {
-        "app_slug_id": LIGHT_DIMMER,
+        "slug_id": LIGHT_DIMMER,
         "friendly_name": "Light Dimmer",
+        "domain": DOMAIN_LIGHT,
         "supported_features": 1,
     },
     {
-        "app_slug_id": SWITCH,
+        "slug_id": SWITCH,
         "friendly_name": "Switch",
+        "domain": DOMAIN_SWITCH,
         "supported_features": 1,
     },
 ]
