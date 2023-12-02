@@ -127,6 +127,7 @@ export class AppForm extends LitElement {
         .appSlugs=${this.appSlugs}
         .apps="${this.apps}"
         .sortable=${this._sortable}
+        .entities=${this.entities}
       ></sk-reorderable-list>
     `;
   }
@@ -140,6 +141,7 @@ export class AppForm extends LitElement {
         app_id: `${this._selectedSlug.slug_id}-${this._selectedEntity.entity_id}`,
         app_slug_id: this._selectedSlug.slug_id,
         entity_id: this._selectedEntity.entity_id,
+        friendly_name: this._selectedEntity.attributes.friendly_name ?? '', //TODO what to add if no frindly name? entity id?
       },
       app_slug: this._selectedSlug,
       entity: this._selectedEntity,

@@ -11,6 +11,7 @@ export const saveApp = (hass: HomeAssistant, app: App) => {
         app_id: app.app_id,
         app_slug_id: app.app_slug_id,
         entity_id: app.entity_id,
+        friendly_name: app.friendly_name,
       },
     ],
   });
@@ -23,6 +24,7 @@ export const saveApps = (hass: HomeAssistant, apps: App[]) => {
       app_id: app.app_id,
       app_slug_id: app.app_slug_id,
       entity_id: app.entity_id,
+      friendly_name: app.friendly_name,
     });
   }
 
