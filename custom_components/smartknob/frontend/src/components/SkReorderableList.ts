@@ -9,6 +9,7 @@ import {
   SelectSelector,
 } from '../types';
 import { saveApps } from '../data/websockets';
+import { HassEntity } from 'home-assistant-js-websocket';
 
 @customElement('sk-reorderable-list')
 export class SkReorderableList extends LitElement {
@@ -43,6 +44,7 @@ export class SkReorderableList extends LitElement {
 
   @property({ type: Object }) public hass!: HomeAssistant;
   @property({ type: Array }) public appSlugs!: AppSlug[];
+  @property({ type: Array }) public entities!: HassEntity[];
   @property({ type: Array }) apps: AppListItem[] = [];
   @property({ type: Boolean }) sortable: boolean = false;
 
@@ -91,10 +93,16 @@ export class SkReorderableList extends LitElement {
               ></ha-selector>
               <ha-selector
                 .hass=${this.hass}
-                .selector=${{
+                .selector="${{
                   entity: {
-                    include_entities: Object.keys(this.hass.states),
+                    include_entities: this.entities.map((entity) => {
+                      if (!entity.entity_id.startsWith(item.app_slug.domain))
+                        return '';
+
+                      return entity.entity_id;
+                    }),
                   },
+                }}"
                 }}
                 .required=${true}
                 .value=${item.entity?.entity_id}

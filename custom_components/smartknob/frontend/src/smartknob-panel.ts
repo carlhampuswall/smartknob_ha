@@ -3,29 +3,39 @@ import { html, css, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import './view/app-form';
-import { AppListItem, AppSlug, HomeAssistant } from './types';
+import { AppListItem, AppSlug, HomeAssistant, Tab } from './types';
 import { loadHa } from './load-ha-elements';
 import { getAsyncAppSlugs, getAsyncApps } from './data/websockets';
-
-import './const';
+import { DOMAIN, TABS } from './const';
 
 @customElement('smartknob-panel')
 export class SmartknobPanel extends LitElement {
   static styles = css`
     .header {
-      display: flex;
+      /* display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: space-between; */
       padding: 0 16px;
-      height: 64px;
       background-color: var(--app-header-background-color);
       color: var(--text-primary-color);
     }
 
-    .toolbar {
+    .header h2 {
+      margin: 0;
+    }
+
+    .header .toolbar {
+      padding: 16px 0;
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    .header ha-tabs {
+      --paper-tabs-selection-bar-color: var(
+        --app-header-selection-bar-color,
+        var(--app-header-text-color, #fff)
+      );
     }
 
     .content {
@@ -34,8 +44,10 @@ export class SmartknobPanel extends LitElement {
   `;
 
   @property({ type: Object }) public hass!: HomeAssistant;
+  @property({ type: Boolean }) public narrow!: boolean;
   @state() private _appSlugs: AppSlug[] = [];
   @state() private _appList: AppListItem[] = [];
+  @state() private _currentTab: Tab = TABS[0];
 
   async connectedCallback() {
     const loadedAppSlugs = (await getAsyncAppSlugs(this.hass)).app_slugs;
@@ -55,6 +67,7 @@ export class SmartknobPanel extends LitElement {
           app_id: app.app_id,
           app_slug_id: app.app_slug_id,
           entity_id: app.entity_id,
+          friendly_name: app.friendly_name,
         },
         app_slug: _appSlug,
         entity: _entity,
@@ -89,9 +102,25 @@ export class SmartknobPanel extends LitElement {
       <div>
         <div class="header">
           <div class="toolbar">
-            <ha-menu-button .hass=${this.hass} .narrow=${true}></ha-menu-button>
-            Smartknob - Configuration
+            <ha-menu-button
+              .hass=${this.hass}
+              .narrow=${this.narrow}
+            ></ha-menu-button>
+            <h2>Smartknob</h2>
           </div>
+          <ha-tabs
+            scrollable
+            attr-for-selected="tab-name"
+            .selected=${this._currentTab.tabId}
+            @iron-activate=${this.handleTabSelect}
+          >
+            ${TABS.map(
+              (tab) =>
+                html`<paper-tab tab-name=${tab.tabId}
+                  >${tab.tabName}</paper-tab
+                >`,
+            )}
+          </ha-tabs>
         </div>
         <div class="content">
           <app-form
@@ -103,5 +132,21 @@ export class SmartknobPanel extends LitElement {
         </div>
       </div>
     </div>`;
+  }
+
+  handleTabSelect(e: any) {
+    const newTab = e.detail.item.getAttribute('tab-name');
+    const pathName = window.location.origin;
+    console.log(window.location.origin);
+
+    if (!pathName.endsWith(newTab)) {
+      console.log('Going to new tab');
+      history.replaceState(null, '', `${pathName}/${DOMAIN}/${newTab}`);
+
+      // window.dispatchEvent(new Event('location-changed'));
+      this.requestUpdate();
+    } else {
+      this.scrollTo(0, 0);
+    }
   }
 }

@@ -1,6 +1,8 @@
 // import { getAsyncAppSlugs } from './data/websockets';
 // import { AppSlug, SelectOption, SelectSelector } from './types';
 
+import { Tab } from './types';
+
 // import { HomeAssistant } from './types';
 
 // // const appSlugs = [];
@@ -61,3 +63,16 @@
 
 //   // readonly selectSelector = selectSelector;
 // }
+
+export const DOMAIN = 'smartknob';
+
+export const TABS: Tab[] = [
+  {
+    tabId: 'setup',
+    tabName: 'Setup',
+  },
+  {
+    tabId: 'configuration',
+    tabName: 'Configuration',
+  },
+];

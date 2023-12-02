@@ -27,12 +27,18 @@ export interface App {
   app_id: string;
   app_slug_id: string;
   entity_id: string;
+  friendly_name: string;
 }
 
 export interface AppListItem {
   app: App;
   app_slug: AppSlug;
   entity: HassEntity | null;
+}
+
+export interface Tab {
+  tabId: string;
+  tabName: string;
 }
 
 //MY CUSTOM TYPES
