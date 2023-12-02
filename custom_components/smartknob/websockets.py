@@ -39,6 +39,7 @@ class SmartknobAppsView(HomeAssistantView):
                         vol.Required("app_id"): str,
                         vol.Required("app_slug_id"): str,
                         vol.Required("entity_id"): str,
+                        vol.Required("friendly_name"): str,
                     }
                 ],
             }
