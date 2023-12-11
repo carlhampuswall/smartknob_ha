@@ -6,6 +6,8 @@ DATA_REGISTRY = f"{DOMAIN}_storage"
 
 SAVE_DELAY = 10
 
+TOPIC_INIT = DOMAIN + "/init"
+
 TOPIC_TO_KNOB = "smartknob/to_knob"
 TOPIC_TO_HASS = "smartknob/to_hass"
 

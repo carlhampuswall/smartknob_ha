@@ -1,34 +1,23 @@
-from .panel import (
-    async_register_panel,
-    async_unregister_panel,
-)
-from .logger import _LOGGER
-
-import json
-
-import homeassistant
+# from homeassistant.components import panel_custom
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .websockets import async_register_websockets
+from .const import DOMAIN, TOPIC_INIT
+from .logger import _LOGGER
+from .mqtt import MqttHandler
+from .panel import async_register_panel, async_unregister_panel
 from .store import async_get_registry
-
-from homeassistant.const import SERVICE_TURN_ON, SERVICE_TURN_OFF
-from homeassistant.components import panel_custom
-
-
-from .const import (
-    DOMAIN,
-    TOPIC_TO_HASS,
-    LIGHT_SWITCH,
-    LIGHT_DIMMER,
-)
+from .websockets import async_register_websockets
 
 
 async def async_setup(hass: HomeAssistant, config):
     _LOGGER.debug("async_setup")
+    """
+    hass: HomeAssistant = request.app["hass"]
+    coordinator = hass.data[DOMAIN]["coordinator"]
+    apps = coordinator.store.async_get_apps()
 
     async def mqtt_message_recived(msg):
         try:
@@ -81,19 +70,25 @@ async def async_setup(hass: HomeAssistant, config):
             _LOGGER.error("No implemented app_id")
             return
 
+    async def async_init_received(msg):
+        _LOGGER.error("MQTT MESSAGE RECIVED")
+        _LOGGER.error(msg)
+
     await hass.components.mqtt.async_subscribe(TOPIC_TO_HASS, mqtt_message_recived, 0)
+    await hass.components.mqtt.async_subscribe(TOPIC_INIT, async_init_received, 0)
+    """
 
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up the Your Integration entry."""
+    hass.data.setdefault(DOMAIN, {})
     session = async_get_clientsession(hass)
 
     store = await async_get_registry(hass)
     coordinator = SmartknobCoordinator(hass, session, entry, store)
 
-    hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN] = {"coordinator": coordinator, "apps": []}
 
     if entry.unique_id is None:
@@ -107,6 +102,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # LOAD CONFIG DATA
     coordinator.store.async_load()
 
+    # TODO THIS IS FOR TESTING
+    coordinator = hass.data[DOMAIN]["coordinator"]
+    # await coordinator.store.async_add_app(
+    #     "C0:4E:30:05:B1:18", {"app_id": "light_switch"}
+    # )
+
+    _LOGGER.error(coordinator.store.async_get_knobs())  # ? CANT BE AWAITED???
+    # TODO THIS IS FOR TESTING
+
     return True
 
 
@@ -118,15 +122,21 @@ async def async_remove_entry(hass, entry):
 
 
 class SmartknobCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, session, entry, store):
+    """Smartknob DataUpdateCoordinator."""  # TODO ADD BETTER COORDINATOR DESC
+
+    def __init__(self, hass, session, entry, store) -> None:
+        """Initialize the coordinator."""
         self.id = entry.entry_id
         self.hass = hass
         self.entry = entry
         self.store = store
 
+        self.hass.data[DOMAIN]["mqtt_handler"] = MqttHandler(self.hass)
+
         super().__init__(hass, _LOGGER, name=DOMAIN)
 
     async def async_update_app_config(self, data: dict = None):
+        """Update config for app."""
         if self.store.async_get_app(data.get("app_id")):
             self.store.async_update_app(data)
             return
@@ -134,7 +144,9 @@ class SmartknobCoordinator(DataUpdateCoordinator):
         self.store.async_create_app(data)
 
     async def async_unload(self):
+        """Unload coordinator."""
         del self.hass.data[DOMAIN]["apps"]
 
     async def async_delete_config(self):
+        """Delete config."""
         await self.store.async_delete()
