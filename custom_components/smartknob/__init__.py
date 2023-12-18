@@ -82,7 +82,7 @@ async def async_setup(hass: HomeAssistant, config):
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up the Your Integration entry."""
+    """Setup Smartknob integration."""
     hass.data.setdefault(DOMAIN, {})
     session = async_get_clientsession(hass)
 
@@ -96,19 +96,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     await async_register_panel(hass)
 
-    # Websocket support
+    # Register Websockets
     await async_register_websockets(hass)
 
-    # LOAD CONFIG DATA
-    coordinator.store.async_load()
+    # Load Config Data
+    await coordinator.store.async_load()
 
     # TODO THIS IS FOR TESTING
     coordinator = hass.data[DOMAIN]["coordinator"]
-    # await coordinator.store.async_add_app(
-    #     "C0:4E:30:05:B1:18", {"app_id": "light_switch"}
-    # )
-
-    _LOGGER.error(coordinator.store.async_get_knobs())  # ? CANT BE AWAITED???
     # TODO THIS IS FOR TESTING
 
     return True
