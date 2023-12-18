@@ -127,6 +127,14 @@ class SmartknobStorage:
         return attr.asdict(new_app)
 
     @callback
+    async def async_get_app(self, mac_address, app_id: str) -> AppEntry:
+        """Get app from registry."""
+        for app in self.knobs[mac_address].apps:
+            if app.app_id == app_id:
+                return attr.asdict(app)
+        return None
+
+    @callback
     def async_delete_knob(self, mac_address: str) -> None:
         """Remove a smartknob from registry."""
         if mac_address in self.knobs:
