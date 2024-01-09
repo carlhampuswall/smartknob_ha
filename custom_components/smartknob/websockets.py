@@ -14,59 +14,9 @@ from .logger import _LOGGER
 
 async def async_register_websockets(hass):
     """Register websockets."""
-    # hass.http.register_view(SmartknobConfigView)
-    # hass.http.register_view(SmartknobAppsView)
     hass.http.register_view(SmartknobAppSlugsView)
     hass.http.register_view(SmartknobKnobsView)
-
-
-# class SmartknobConfigView(HomeAssistantView):
-#     url = "/api/smartknob/config"
-#     name = "api:smartknob:config"
-
-#     async def post(self, request, data):
-#         return self.json({"success": False, "error": "Not implemented"})
-
-#     async def get(self, request):
-#         return self.json({"success": False, "error": "Not implemented"})
-
-
-# class SmartknobAppsView(HomeAssistantView):
-#     url = "/api/smartknob/apps"
-#     name = "api:smartknob:apps"
-
-#     @RequestDataValidator(
-#         vol.Schema(
-#             {
-#                 vol.Required("apps"): [
-#                     {
-#                         vol.Required("app_id"): str,
-#                         vol.Required("app_slug_id"): str,
-#                         vol.Required("entity_id"): str,
-#                         vol.Required("friendly_name"): str,
-#                     }
-#                 ],
-#             }
-#         )
-#     )
-#     async def post(self, request, data: dict):
-#         hass: HomeAssistant = request.app["hass"]
-#         coordinator = hass.data[DOMAIN]["coordinator"]
-#         apps = data.get("apps")
-
-#         if len(apps) > 1:
-#             await coordinator.store.async_update_apps(apps)
-#         await coordinator.async_update_app_config(data.get("apps")[0])
-
-#         return self.json({"success": True})  # TODO return actual success or error
-
-#     async def get(self, request):
-#         hass: HomeAssistant = request.app["hass"]
-#         coordinator = hass.data[DOMAIN]["coordinator"]
-#         apps = coordinator.store.async_get_apps()
-#         return self.json(
-#             {"success": True, "apps": apps}
-#         )  # TODO return actual success or error
+    hass.http.register_view(SmartknobAppsView)
 
 
 class SmartknobAppSlugsView(HomeAssistantView):
@@ -97,3 +47,42 @@ class SmartknobKnobsView(HomeAssistantView):
         return self.json(
             {"success": True, "knobs": knobs}
         )  # TODO return actual success or error
+
+
+class SmartknobAppsView(HomeAssistantView):
+    """View to handle Smartknob config requests."""
+
+    url = "/api/smartknob/apps"
+    name = "api:smartknob:apps"
+
+    @RequestDataValidator(
+        vol.Schema(
+            {
+                vol.Required("mac_address"): str,
+                vol.Required("apps"): [
+                    {
+                        vol.Required("app_id"): str,
+                        vol.Required("app_slug_id"): str,
+                        vol.Required("entity_id"): str,
+                        vol.Required("friendly_name"): str,
+                    }
+                ],
+            }
+        )
+    )
+    async def post(self, request, data: dict):
+        """Update config for app."""
+        hass: HomeAssistant = request.app["hass"]
+        coordinator = hass.data[DOMAIN]["coordinator"]
+        if "mac_address" and "apps" in data:
+            apps = data.get("apps")
+
+            _LOGGER.error(apps)
+
+            if len(apps) > 1:
+                await coordinator.store.async_update_apps(apps)
+            await coordinator.store.async_add_app(
+                data.get("mac_address"), data.get("apps")[0]
+            )
+
+        return self.json({"success": True})  # TODO return actual success or error

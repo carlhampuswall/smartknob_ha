@@ -3,9 +3,9 @@ import { html, css, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import './view/app-form';
-import { AppListItem, AppSlug, HomeAssistant, Tab } from './types';
+import { AppListItem, AppSlug, HomeAssistant, Knob, Tab } from './types';
 import { loadHa } from './load-ha-elements';
-import { getAsyncAppSlugs, getAsyncApps } from './data/websockets';
+import { getAsyncAppSlugs, getAsyncKnobs } from './data/websockets';
 import { DOMAIN, TABS } from './const';
 
 @customElement('smartknob-panel')
@@ -47,34 +47,42 @@ export class SmartknobPanel extends LitElement {
   @property({ type: Boolean }) public narrow!: boolean;
   @state() private _appSlugs: AppSlug[] = [];
   @state() private _appList: AppListItem[] = [];
+  @state() private _knobs: Knob = {};
   @state() private _currentTab: Tab = TABS[0];
 
   async connectedCallback() {
+    const loadedKnobs = (await getAsyncKnobs(this.hass)).knobs;
+
     const loadedAppSlugs = (await getAsyncAppSlugs(this.hass)).app_slugs;
 
-    const loadedApps = (await getAsyncApps(this.hass)).apps;
-    const __appList: AppListItem[] = []; // BAD NAMING CONVENTION?? BUT NEED TO REPLACE _appList in its entirety FOR LIT TO RERENDER
-    loadedApps.forEach((app) => {
-      const _appSlug =
-        loadedAppSlugs.find((a) => a.slug_id == app.app_slug_id) ??
-        loadedAppSlugs[0];
-      const _entity =
-        [...Object.values(this.hass.states)].find(
-          (e) => e.entity_id == app.entity_id,
-        ) ?? null;
-      __appList.push({
-        app: {
-          app_id: app.app_id,
-          app_slug_id: app.app_slug_id,
-          entity_id: app.entity_id,
-          friendly_name: app.friendly_name,
-        },
-        app_slug: _appSlug,
-        entity: _entity,
-      });
-    });
+    const __appList: AppListItem[] = [];
+
+    for (const knob in loadedKnobs) {
+      for (const app of loadedKnobs[knob].apps) {
+        const _appSlug =
+          loadedAppSlugs.find((a) => a.slug_id == app.app_slug_id) ??
+          loadedAppSlugs[0];
+
+        const _entity =
+          [...Object.values(this.hass.states)].find(
+            (e) => e.entity_id == app.entity_id,
+          ) ?? null;
+
+        __appList.push({
+          app: {
+            app_id: app.app_id,
+            app_slug_id: app.app_slug_id,
+            entity_id: app.entity_id,
+            friendly_name: app.friendly_name,
+          },
+          app_slug: _appSlug,
+          entity: _entity,
+        });
+      }
+    }
     this._appList = __appList;
     this._appSlugs = loadedAppSlugs;
+    this._knobs = loadedKnobs;
 
     super.connectedCallback();
 
@@ -94,7 +102,7 @@ export class SmartknobPanel extends LitElement {
     )
       return html` loading... `;
 
-    console.log(this._appList);
+    this._knobs; //REMOVE
 
     const entities = [...Object.values(this.hass.states)];
 
@@ -137,10 +145,7 @@ export class SmartknobPanel extends LitElement {
   handleTabSelect(e: any) {
     const newTab = e.detail.item.getAttribute('tab-name');
     const pathName = window.location.origin;
-    console.log(window.location.origin);
-
     if (!pathName.endsWith(newTab)) {
-      console.log('Going to new tab');
       history.replaceState(null, '', `${pathName}/${DOMAIN}/${newTab}`);
 
       // window.dispatchEvent(new Event('location-changed'));

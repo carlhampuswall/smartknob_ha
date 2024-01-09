@@ -1,11 +1,18 @@
-import { App, AppSlug, HomeAssistant } from '../types';
+import { App, AppSlug, HomeAssistant, Knob } from '../types';
 
 export const getAsyncApps = (hass: HomeAssistant) => {
   return hass.callApi<{ success; apps: App[] }>('GET', 'smartknob/apps');
 };
 
-export const saveApp = (hass: HomeAssistant, app: App) => {
-  return hass.callApi('POST', 'smartknob/apps', {
+export const asyncSaveApp = async (
+  hass: HomeAssistant,
+  mac_address: string,
+  app: App,
+) => {
+  console.log('HMMMM');
+
+  return await hass.callApi('POST', 'smartknob/apps', {
+    mac_address,
     apps: [
       {
         app_id: app.app_id,
@@ -43,6 +50,16 @@ export const getAsyncAppSlugs = async (hass: HomeAssistant) => {
   );
 
   if (res.success != 'success') console.log("ERROR: Couldn't get app slugs");
+
+  return res;
+};
+
+export const getAsyncKnobs = async (hass: HomeAssistant) => {
+  const res = await hass.callApi<{ success; knobs: Knob }>(
+    'GET',
+    'smartknob/knobs',
+  );
+  if (res.success != 'success') console.log("ERROR: Couldn't get knobs");
 
   return res;
 };

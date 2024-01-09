@@ -41,6 +41,17 @@ export interface Tab {
   tabName: string;
 }
 
+// export interface Knob {
+//   [mac_address: string]: KnobData;
+// }
+
+export type Knob = Record<string, KnobData>;
+
+export interface KnobData {
+  mac_address: string;
+  apps: App[];
+}
+
 //MY CUSTOM TYPES
 
 export interface ServiceCallRequest {

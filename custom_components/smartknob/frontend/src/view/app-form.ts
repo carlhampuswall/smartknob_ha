@@ -10,7 +10,7 @@ import {
 import { HassEntity } from 'home-assistant-js-websocket';
 import '../components/SkReorderableList';
 import { mdiPlus, mdiSort } from '@mdi/js';
-import { saveApp } from '../data/websockets';
+import { asyncSaveApp } from '../data/websockets';
 // import { selectSelector } from '../const';
 
 @customElement('app-form')
@@ -156,7 +156,7 @@ export class AppForm extends LitElement {
       this.apps.push(appListItem);
     this.apps = [...this.apps]; //TODO VALIDATE DATA _entity could be null for example
 
-    saveApp(this.hass, appListItem.app); //SAVE TO STORAGE
+    asyncSaveApp(this.hass, '1C:9D:C2:FD:ED:50', appListItem.app); //SAVE TO STORAGE --- FIX!!!!! HARDCODED MAC ADDRESS TO TEST FOR NOW
 
     this.requestUpdate();
   };

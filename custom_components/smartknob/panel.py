@@ -1,9 +1,7 @@
-from .logger import _LOGGER
-
 import os
 
+from homeassistant.components import frontend, panel_custom
 from homeassistant.core import HomeAssistant
-from homeassistant.components import panel_custom, frontend
 
 from .const import (
     CUSTOM_COMPONENTS,
@@ -16,9 +14,11 @@ from .const import (
     PANEL_TITLE,
     PANEL_URL,
 )
+from .logger import _LOGGER
 
 
 async def async_register_panel(hass: HomeAssistant):
+    """Register panel."""
     root_dir = os.path.join(hass.config.path(CUSTOM_COMPONENTS), INTEGRATION_FOLDER)
     panel_dir = os.path.join(root_dir, PANEL_FOLDER)
     panel_file = os.path.join(panel_dir, PANEL_FILENAME)
@@ -43,5 +43,6 @@ async def async_register_panel(hass: HomeAssistant):
 
 
 def async_unregister_panel(hass: HomeAssistant):
+    """Unregister panel."""
     frontend.async_remove_panel(hass, DOMAIN)
     _LOGGER.debug("Unregistering panel")
