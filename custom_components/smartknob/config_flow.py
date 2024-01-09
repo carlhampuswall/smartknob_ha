@@ -1,24 +1,19 @@
 import logging
-import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow
+from homeassistant import config_entries
 
-from .const import (
-    DOMAIN,
-)
+from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
-class SmartknobConfigFlow(ConfigFlow, domain=DOMAIN):
-    VERSION = 1
-
+# TODO tell user to go to Smartknob panel after submit
+class SmartknobConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         if user_input is None:
             return self.async_show_form(
                 step_id="user",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required("host"): str,
-                    }
-                ),
             )
-        return self.async_create_entry(title="My Integration", data=user_input)
+
+        _LOGGER.debug("Creating config entry for Smartknob")
+        return self.async_create_entry(title="Smartknob", data=user_input)

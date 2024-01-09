@@ -1,86 +1,117 @@
-import logging
-import json
+"""The Smartknob integration."""
+from collections.abc import MutableMapping
 
-from homeassistant.const import STATE_ON, STATE_OFF, SERVICE_TURN_ON, SERVICE_TURN_OFF
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_state_change
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import (
-    DOMAIN,
-    TOPIC_TO_KNOB,
-    TOPIC_TO_HASS,
-    LIGHT_SWITCH,
-    LIGHT_DIMMER,
-)
-
-_LOGGER = logging.getLogger(__name__)
+from .const import DOMAIN
+from .logger import _LOGGER
+from .mqtt import MqttHandler
+from .panel import async_register_panel, async_unregister_panel
+from .store import SmartknobStorage, async_get_registry
+from .websockets import async_register_websockets
 
 
-async def async_setup(hass, config):
+async def async_setup(hass: HomeAssistant, config):
+    """Set up the Smartknob component."""
     _LOGGER.debug("async_setup")
-    # hass.async_create_task(hass.config_entries.flow.async_init(DOMAIN))
 
-    async def mqtt_message_recived(msg):
-        # _LOGGER.error("Message recived on topic %s: %s", msg.topic, msg.payload)
+    # # Define a callback function to call when a state change occurs
+    # def state_change_callback(entity_id, old_state, new_state):
+    #     update_knob_on_entity_change(knobs, entity_id, new_state.state)
 
-        try:
-            payload = json.loads(msg.payload)
-        except json.JSONDecodeError as e:
-            _LOGGER.error("Error decoding JSON payload: %s", e)
-            return
-
-        if (
-            "entity_id" not in payload
-            or "app_slug" not in payload
-            or "new_value" not in payload
-        ):
-            _LOGGER.error("Payload missing entity_id or app_slug or new_value")
-            return
-
-        entity_id = payload["entity_id"]
-        app_slug = payload["app_slug"]
-        new_value = payload["new_value"]
-        # data = payload["data"]
-
-        # _LOGGER.error(payload)
-
-        if app_slug == LIGHT_SWITCH:
-            _LOGGER.error("Switch command executing")
-            if new_value == 1.0:
-                await hass.services.async_call(
-                    "light", "turn_on", {"entity_id": entity_id}
-                )
-
-            elif new_value == 0.0:
-                await hass.services.async_call(
-                    "light", "turn_off", {"entity_id": entity_id}
-                )
-
-            else:
-                _LOGGER.error("Not implemented command")
-
-        elif app_slug == LIGHT_DIMMER:
-            _LOGGER.error("Light command executing")
-            if new_value != None:
-                await hass.services.async_call(
-                    "light",
-                    SERVICE_TURN_ON if new_value > 0.0 else SERVICE_TURN_OFF,
-                    {"entity_id": entity_id, "brightness": new_value * 2.55}
-                    if new_value > 0.0
-                    else {"entity_id": entity_id},
-                )
-                # _LOGGER.error(hass.states.get(entity_id))
-            else:
-                _LOGGER.error("Not implemented command")
-
-        else:
-            _LOGGER.error("No implemented app_id")
-            return
-
-    await hass.components.mqtt.async_subscribe(TOPIC_TO_HASS, mqtt_message_recived, 0)
+    # # Subscribe to state changes of the entities
+    # async_track_state_change(hass, entity_ids, state_change_callback)
 
     return True
 
 
-async def async_setup_entry(hass, config):
-    """Set up the Your Integration entry."""
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Set up Smartknob from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    session = async_get_clientsession(hass)
+
+    store = await async_get_registry(hass)
+    coordinator = SmartknobCoordinator(hass, session, entry, store)
+
+    hass.data[DOMAIN] = {"coordinator": coordinator, "apps": []}
+
+    if entry.unique_id is None:
+        hass.config_entries.async_update_entry(entry, unique_id=coordinator.id, data={})
+
+    await async_register_panel(hass)
+
+    # Register Websockets
+    await async_register_websockets(hass)
+
+    # Load Config Data
+    await coordinator.store.async_load()
+
+    # Subsribe to entity state changes of all entities used in knobs
+    knobs = coordinator.store.async_get_knobs()
+    entity_ids = [(app["entity_id"]) for knob in knobs.values() for app in knob["apps"]]
+
+    async def async_state_change_callback(entity_id, old_state, new_state):
+        """Handle entity state changes."""
+        affected_knobs = []
+        app_id = []
+        for knob in knobs.values():
+            for app in knob["apps"]:
+                if app["entity_id"] == entity_id:
+                    affected_knobs.append(knob)
+                    app_id.append(
+                        app["app_id"]
+                    )  # THIS DOESNT REALLY WORK WILL WORK FOR NOW
+
+        await coordinator.mqtt_handler.async_entity_state_changed(
+            affected_knobs, app_id, old_state, new_state
+        )
+
+    async_track_state_change(hass, entity_ids, async_state_change_callback)
+
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant | None, entry):
+    """Handle removal of an entry."""
+    async_unregister_panel(hass)
+    coordinator = hass.data[DOMAIN]["coordinator"]
+    await coordinator.async_delete_config()
+    del hass.data[DOMAIN]
+
+
+class SmartknobCoordinator(DataUpdateCoordinator):
+    """Smartknob DataUpdateCoordinator."""
+
+    def __init__(
+        self, hass: HomeAssistant | None, session, entry, store: SmartknobStorage
+    ) -> None:
+        """Initialize the coordinator."""
+        self.id = entry.entry_id
+        self.hass = hass
+        self.entry = entry
+        self.store = store
+        self.mqtt_handler = MqttHandler(self.hass)
+
+        # self.hass.data[DOMAIN]["mqtt_handler"] = MqttHandler(self.hass)
+
+        super().__init__(hass, _LOGGER, name=DOMAIN)
+
+    async def async_update_app_config(self, data: dict = None):
+        """Update config for app."""
+        if self.store.async_get_app(data.get("app_id")):
+            self.store.async_update_app(data)
+            return
+
+        self.store.async_create_app(data)
+
+    async def async_unload(self):
+        """Unload coordinator."""
+        del self.hass.data[DOMAIN]["apps"]
+
+    async def async_delete_config(self):
+        """Delete config."""
+        await self.store.async_delete()
